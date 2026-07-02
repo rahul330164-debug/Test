@@ -437,9 +437,22 @@ currentSolutionIndex++; document.getElementById('qnav-'+currentSolutionIndex)?.s
 
     // MERE ADD KIYE GAYE MISSING FUNCTIONS (Jo aapke code mein nahi the)
     function changeQ(i) {
-        currentQ = i;
-        render();
+    currentQ = i;
+    render(); // UI update karein
+    
+    // Auto-scroll logic
+    const activeBtn = document.getElementById('qnav-' + i);
+    if (activeBtn) {
+        activeBtn.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'center'
+        });
     }
+}
+
+
+
 
      function setAns(o) {
     // Agar wahi option pehle se selected hai, to null kar dein (deselect)
@@ -576,11 +589,10 @@ function goBack() {
     const q = sessionData[currentQ];
     const container = document.getElementById('question-container');
     
-    // समय कैलकुलेट करें
     const mins = Math.floor(q.timeSpent / 60);
     const secs = (q.timeSpent % 60).toString().padStart(2, '0');
     
-    // 1. Question Container Update
+    // Yahan options ko map karte waqt apna naya logic use karein
     container.innerHTML = `
         <div class="flex justify-between items-center mb-4">
             <p class="text-sm font-bold text-blue-600">Question ${currentQ + 1}</p>
@@ -589,45 +601,51 @@ function goBack() {
             </div>
         </div>
         <p class="font-bold text-lg mb-4 text-slate-800">${q.q}</p>
+        
         ${q.options.map(o => `
-            <button onclick="setAns('${o}')" class="block w-full p-4 border-2 rounded-2xl mb-2 transition-all ${q.sel === o ? 'bg-blue-600 text-white border-blue-600' : 'border-slate-100'}">
+            <button onclick="setAns('${o}')" class="block w-full p-4 border-2 rounded-2xl mb-2 transition-all 
+                ${q.sel === o ? 'bg-blue-600 text-white border-blue-600' : (isReAttempting ? 'border-yellow-400' : 'border-slate-100')}">
                 ${o}
             </button>
         `).join('')}
     `;
     
-    // 2. Palette (Navigation) Render
+    // Baaki ka palette render logic waisa hi rahega
     const palette = document.getElementById('nav-palette');
     palette.innerHTML = sessionData.map((item, i) => {
         let btnColor = item.sel ? 'bg-green-500 text-white' : 'bg-white';
         if (i === currentQ) btnColor = 'bg-slate-800 text-white';
         return `<button id="qnav-${i}" onclick="changeQ(${i})" class="pal-btn ${btnColor}">${i + 1}</button>`;
     }).join('');
+    
+    // ... (next button ka logic yahan rahega)
 
-    // Auto Scroll Logic
-    const activeBtn = document.getElementById(`qnav-${currentQ}`);
-    if (activeBtn) {
-        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-    }
 
-    // 3. Next/Submit Button Logic
+
+    // --- BUTTON LOGIC UPDATE ---
     const nextBtn = document.getElementById('next-btn');
     const isLastQ = (currentQ === sessionData.length - 1);
 
-    nextBtn.innerText = isLastQ ? "Submit" : "Next";
-    
-    nextBtn.className = isLastQ 
-        ? "flex-1 bg-green-600 text-white py-3 rounded-xl font-bold text-sm" 
-        : "flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold text-sm";
-
-    nextBtn.onclick = () => {
-        if (!isLastQ) {
-            changeQ(currentQ + 1);
-        } else {
+    // Agar Re-Attempt mode hai, toh hamesha "Submit" dikhayein
+    if (isReAttempting) {
+        nextBtn.innerText = "Submit";
+        nextBtn.className = "flex-1 bg-green-600 text-white py-3 rounded-xl font-bold text-sm";
+        nextBtn.onclick = () => {
+            isReAttempting = false; // Flag off
             document.getElementById('submit-modal').classList.remove('hidden');
-        }
-    };
+        };
+    } else {
+        nextBtn.innerText = isLastQ ? "Submit" : "Next";
+        nextBtn.className = isLastQ 
+            ? "flex-1 bg-green-600 text-white py-3 rounded-xl font-bold text-sm" 
+            : "flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold text-sm";
+        nextBtn.onclick = () => {
+            if (!isLastQ) changeQ(currentQ + 1);
+            else document.getElementById('submit-modal').classList.remove('hidden');
+        };
+    }
 }
+
 
 // हर सेकंड प्रश्न का समय अपडेट करने वाला नया लॉजिक[span_2](start_span)[span_2](end_span)
 // यह इंटरवल सिर्फ UI को हर सेकंड अपडेट करेगा, टाइमर को 2 गुना स्पीड से चलने से रोकेगा[span_3](start_span)[span_3](end_span)
@@ -678,22 +696,29 @@ setInterval(() => {
         let timeFormatted = `${Math.floor(q.timeSpent/60)}:${(q.timeSpent%60).toString().padStart(2,'0')}`;
         let timeColor = q.timeSpent > 30 ? 'text-red-600' : 'text-green-600'; 
         
-        html += `
-        <div class="bg-white border-l-4 ${statusClass} p-5 rounded-2xl shadow-sm mb-6">
-            <div class="flex justify-between items-start mb-3">
-                <span class="text-[10px] font-black text-slate-400 uppercase">Question ${i+1}</span>
-                <span class="text-[10px] font-bold ${timeColor}">Time: ${timeFormatted}</span>
-            </div>
-            <p class="font-bold text-slate-800 mb-4">${q.q}</p>
-            
-            <div class="grid grid-cols-2 gap-2 text-sm mb-4">
-                <div class="bg-slate-50 p-2.5 rounded-lg border">Your: <b class="${!q.sel ? 'text-slate-400' : ''}">${q.sel || 'None'}</b></div>
-                <div class="bg-green-50 p-2.5 rounded-lg border border-green-100 text-green-700">Ans: <b>${q.ans}</b></div>
-            </div>
-            
-            <button onclick="toggleSol('sol-${i}')" class="w-full text-xs bg-slate-900 text-white py-2.5 rounded-xl font-bold hover:bg-slate-800 transition">View Solution</button>
-            <div id="sol-${i}" class="hidden mt-3 p-4 bg-slate-50 border rounded-xl italic text-sm text-slate-600">${q.sol || 'No solution available'}</div>
-        </div>`;
+        // ... purane code ke andar jahan button render ho raha hai, wahan ye karein:
+
+html += `
+<div class="bg-white border-l-4 ${statusClass} p-5 rounded-2xl shadow-sm mb-6">
+    <div class="flex justify-between items-start mb-3">
+        <span class="text-[10px] font-black text-slate-400 uppercase">Question ${i+1}</span>
+        <span class="text-[10px] font-bold ${timeColor}">Time: ${timeFormatted}</span>
+    </div>
+    <p class="font-bold text-slate-800 mb-4">${q.q}</p>
+    
+    <div class="grid grid-cols-2 gap-2 text-sm mb-4">
+        <div class="bg-slate-50 p-2.5 rounded-lg border">Your: <b class="${!q.sel ? 'text-slate-400' : ''}">${q.sel || 'None'}</b></div>
+        <div class="bg-green-50 p-2.5 rounded-lg border border-green-100 text-green-700">Ans: <b>${q.ans}</b></div>
+    </div>
+    
+    <div class="flex gap-2">
+        <button onclick="toggleSol('sol-${i}')" class="flex-1 text-xs bg-slate-900 text-white py-2.5 rounded-xl font-bold hover:bg-slate-800 transition">View Sol</button>
+        <button onclick="reAttemptQuestion(${i})" class="flex-1 text-xs bg-blue-100 text-blue-700 py-2.5 rounded-xl font-bold hover:bg-blue-200 transition">Re-Attempt</button>
+    </div>
+    
+    <div id="sol-${i}" class="hidden mt-3 p-4 bg-slate-50 border rounded-xl italic text-sm text-slate-600">${q.sol || 'No solution available'}</div>
+</div>`;
+
     });
     
     const score = (rig - wro * 0.25).toFixed(2);
@@ -810,9 +835,48 @@ function handlePrev() {
         changeQ(currentQ - 1);
     }
 }
+let isReAttempting = false; // Global variable
+
+function reAttemptQuestion(index) {
+    document.getElementById('result-area').classList.add('hidden');
+    document.getElementById('test-ui').classList.remove('hidden');
+    
+    currentQ = index;
+    isSubmitted = false;
+    isReAttempting = true; // Re-attempt flag on
+    
+    // Timer reset
+    sessionData[currentQ].timeSpent = 0; 
+    
+    // Interval reset
+    if (totalInterval) clearInterval(totalInterval);
+    totalInterval = setInterval(() => {
+        if (isSubmitted) return clearInterval(totalInterval);
+        if (timeLeft > 0) timeLeft--;
+        sessionData[currentQ].timeSpent++;
+    }, 1000);
+
+    // Pehle render karein
+    render();
+
+    // Ab navigation palette ko scroll karein (thoda delay ke saath)
+    setTimeout(() => {
+        const activeBtn = document.getElementById('qnav-' + index);
+        if (activeBtn) {
+            activeBtn.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest',
+                inline: 'center'
+            });
+        }
+    }, 100);
+}
 
 </script>
-    <div class="text-center py-6 text-slate-400 text-xs font-medium">
+<div class="text-center py-6 text-slate-400 text-xs font-medium">
+
         <p>&copy; 2026 Rahul's Test Portal. All rights reserved.</p>
-        <p class="mt-1">Designed and Developed by Rahul</p>
-    </div>
+
+        <p class="mt-1">Designed and Developed by Rahul kr. Yadav</p>
+
+</div>
